@@ -1,8 +1,13 @@
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * Demonstrate how threading works in Java 8. Help teach people about
@@ -15,6 +20,8 @@ import java.util.concurrent.Executors;
  */
 public class JavaThreadingClass {
 
+  public static final int MAX_PRIME = 10000;
+
   public static void main(String[] args) throws Exception {
     Lesson1_Threads_Part1();
     System.out.println("Done!");
@@ -25,7 +32,7 @@ public class JavaThreadingClass {
    */
   private static void Lesson1_Threads_Part1() {
     // Calculate primes on one CPU
-    PrimeCalculator calc = new PrimeCalculator(100000);
+    RunnablePrimeCalculator calc = new RunnablePrimeCalculator(100000);
     Thread n = new Thread(calc);
     n.start();
   }
@@ -33,7 +40,7 @@ public class JavaThreadingClass {
   private static void Lesson1_Threads_Part2() {
     // Now do it on multiple CPUs
     for (int i = 0; i < 4; i++) {
-      PrimeCalculator partCalc = new PrimeCalculator(100000);
+      RunnablePrimeCalculator partCalc = new RunnablePrimeCalculator(100000);
       new Thread(partCalc).start();
     }
   }
@@ -50,7 +57,7 @@ public class JavaThreadingClass {
   private static void Lesson2_Executors_Part2() {
     Executor executor = Executors.newCachedThreadPool();
     for (int i = 0; i < 100000; i++) {
-      executor.execute(new PrimeCalculator(10000));
+      executor.execute(new RunnablePrimeCalculator(MAX_PRIME));
     }
   }
 
@@ -61,7 +68,7 @@ public class JavaThreadingClass {
    */
   private static void Lesson2_Executors_Part3() {
     Executor executor = Executors.newFixedThreadPool(2);
-    executor.execute(new PrimeCalculator(10000));
+    executor.execute(new RunnablePrimeCalculator(MAX_PRIME));
   }
 
   /**
@@ -75,7 +82,7 @@ public class JavaThreadingClass {
             .setDaemon(true)
             .build());
     for (int i = 0; i < 100000; i++) {
-      executor.execute(new PrimeCalculator(10000));
+      executor.execute(new RunnablePrimeCalculator(MAX_PRIME));
     }
   }
 
@@ -88,7 +95,7 @@ public class JavaThreadingClass {
             .setDaemon(false)
             .build());
     for (int i = 0; i < 100; i++) {
-      executor.execute(new PrimeCalculator(10000));
+      executor.execute(new RunnablePrimeCalculator(MAX_PRIME));
     }
     executor.shutdown();
   }
@@ -105,7 +112,7 @@ public class JavaThreadingClass {
             .setDaemon(false)
             .build());
     for (int i = 0; i < 100; i++) {
-      executor.execute(new PrimeCalculator(10000));
+      executor.execute(new RunnablePrimeCalculator(MAX_PRIME));
     }
     executor.shutdown();
   }
@@ -119,18 +126,105 @@ public class JavaThreadingClass {
             .setNameFormat("my-fun-threads-%s")
             .setDaemon(false)
             .build());
-    for (int i = 0; i < 100; i++) {
-      executor.execute(new PrimeCalculator(10000));
+    Future<Integer> result = executor.submit(new PrimeCalculator(MAX_PRIME));
+    try {
+      result.get();
+      // Question: when is an InterruptedException thrown?
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+      // Question: when is an ExecutionException thrown?
+    } catch (ExecutionException e) {
+      e.printStackTrace();
     }
     executor.shutdown();
-
-    // How does work happen when Futures are executed? What thread do they run in?
-    // What happens when you combine two futures? Many futures?
-    // What happens when you call .get() on a future?
-    // How do you handle exceptions in Futures?
-    //
   }
 
+  /**
+   * The one where a bunch of Futures are generated.
+   */
+  private static void Lesson3_Futures_Part2() {
+    ExecutorService executor = Executors.newFixedThreadPool(
+        2, new ThreadFactoryBuilder()
+            .setNameFormat("my-fun-threads-%s")
+            .setDaemon(false)
+            .build());
+    List<Future<Integer>> results = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      results.add(executor.submit(new PrimeCalculator(MAX_PRIME)));
+    }
+    try {
+      int biggestPrime = 0;
+      // What's the problem with this approach?
+      for (Future<Integer> result : results) {
+        final Integer prime = result.get();
+        if (prime > biggestPrime) {
+          biggestPrime = prime;
+        }
+      }
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } catch (ExecutionException e) {
+      e.printStackTrace();
+    }
+    executor.shutdown();
+  }
+
+  /**
+   * The one in which we learn about synchronization primitives.
+   *
+   * Questions: -What's a CyclicBarrier? What othere types of barriers are there? What are the
+   * benefits/costs of each type? -What's a latch?
+   */
+  private static void Lesson3_Futures_Part3() {
+  }
+
+  /**
+   * The one where all the complexity disappears. Almost.
+   */
+  private static void Lesson4_CompletableFuture_Part1() throws Exception {
+    CompletableFuture<Integer>
+        future1 =
+        CompletableFuture.supplyAsync(() -> new PrimeCalculator(MAX_PRIME).call());
+    CompletableFuture<Integer>
+        future2 =
+        CompletableFuture.supplyAsync(() -> new PrimeCalculator(MAX_PRIME).call());
+    CompletableFuture<Integer> largestPrime = future1.thenCombine(future2, Math::max);
+    System.out.println(largestPrime.get());
+  }
+
+  /**
+   * The one in which we learn CompletableFuture sucks.
+   *
+   * Questions: -When does the calculation actually start happening in the code below? How does work
+   * happen when Futures are executed? What thread do they run in? What happens when you combine two
+   * futures? Many futures? What happens when you call .get() on a future? How do you handle
+   * exceptions in Futures?
+   */
+  private static void Lesson4_CompletableFuture_Part2() throws Exception {
+    List<CompletableFuture<Integer>> futures = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      futures.add(CompletableFuture.supplyAsync(() -> new PrimeCalculator(MAX_PRIME).call()));
+    }
+    final CompletableFuture<Integer> largestPrimeFuture = CompletableFuture
+        .allOf((CompletableFuture<Integer>[]) futures.toArray())
+        .thenApply(unused -> {
+          int largestPrime = 0;
+          for (CompletableFuture<Integer> f : futures) {
+            try {
+              int prime = f.get();
+              if (prime > largestPrime) {
+                largestPrime = prime;
+              }
+            } catch (InterruptedException e) {
+              e.printStackTrace();
+            } catch (ExecutionException e) {
+              e.printStackTrace();
+            }
+          }
+          return largestPrime;
+        });
+    System.out.println(largestPrimeFuture.get());
+  }
 
   private static void LessonN_SynchronizationPrimitives() {
     // How do you do more complex synchronization across threads?

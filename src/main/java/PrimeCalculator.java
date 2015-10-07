@@ -1,7 +1,7 @@
 import java.util.Random;
 import java.util.concurrent.Callable;
 
-class PrimeCalculator implements Runnable, Callable<Integer> {
+class PrimeCalculator implements Callable<Integer> {
 
   private static long jobCount; // The number of jobs done so far
 
@@ -12,15 +12,8 @@ class PrimeCalculator implements Runnable, Callable<Integer> {
     jobCount = 0;
   }
 
-  public void run() {
-    try {
-      call();
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-  }
-
-  public Integer call() throws Exception {
+  @Override
+  public Integer call() {
     long count = 0;
     int max = 0;
     for (int i = 3; i <= max; i++) {

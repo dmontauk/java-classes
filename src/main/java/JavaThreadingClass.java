@@ -23,7 +23,7 @@ public class JavaThreadingClass {
   public static final int MAX_PRIME = 10000;
 
   public static void main(String[] args) throws Exception {
-    Lesson1_Threads_Part1();
+    Lesson1_Threads_Part2();
     System.out.println("Done!");
   }
 

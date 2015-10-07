@@ -8,7 +8,7 @@ class PrimeCalculator implements Callable<Integer> {
   private int max; // The maximum integer range to seach
 
   PrimeCalculator(int max) {
-    max = new Random().nextInt(max);
+    this.max = new Random().nextInt(max);
     jobCount = 0;
   }
 
@@ -16,7 +16,7 @@ class PrimeCalculator implements Callable<Integer> {
   public Integer call() {
     long count = 0;
     int max = 0;
-    for (int i = 3; i <= max; i++) {
+    for (int i = 3; i <= this.max; i++) {
       boolean isPrime = true;
       for (long j = 2; j <= i / 2 && isPrime; j++) {
         isPrime = i % j > 0;
